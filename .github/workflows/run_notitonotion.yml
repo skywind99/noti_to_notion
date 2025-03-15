@@ -31,7 +31,7 @@ jobs:
           pip install requests beautifulsoup4 pytz notion-client
 
       # 4. 스크립트 실행
-      - name: Run scrape_to_notion.py
+      - name: Run NotiToNotion.py
         env:
           NOTION_AUTH_TOKEN: ${{ secrets.NOTION_AUTH_TOKEN }}
-        run: python scrape_to_notion.py
+        run: python NotiToNotion.py
