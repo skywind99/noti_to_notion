@@ -1,12 +1,13 @@
-name: Scrape to Notion
+name: NotiToNotion
 
-# 워크플로우가 실행될 조건
+# 워크플로우 실행 조건
 on:
+  # 테스트용: 10초마다 실행 (GitHub Actions는 최소 5분 단위 제한이 있으므로, 수동 실행으로 테스트 권장)
   schedule:
-    # 매일 오전 9시 KST (UTC 기준으로 0시, 한국은 UTC+9)
-    - cron: '0 0 * * *'
-  # 수동으로 실행할 수 있도록 설정 (선택 사항)
-  workflow_dispatch:
+    - cron: '* * * * *'  # 매분 실행으로 설정 (GitHub Actions는 10초 단위를 지원하지 않음)
+  # 나중에 사용할 매일 1번 실행 (KST 오전 9시 = UTC 0시)
+  # - cron: '0 0 * * *'
+  workflow_dispatch:  # 수동 실행 가능
 
 jobs:
   scrape-and-update:
@@ -21,7 +22,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'  # 원하는 Python 버전
+          python-version: '3.x'
 
       # 3. 의존성 설치
       - name: Install dependencies
