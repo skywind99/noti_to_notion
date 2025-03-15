@@ -87,6 +87,6 @@ def check_new_blog_post():
             print(f"Post '{post_title}' already exists in Notion. Skipping upload.")
 
 # 주기적으로 새 글 확인
-while True:
-    check_new_blog_post()
-    time.sleep(86400)  # 24시간 간격으로 변경 
+# while True:
+#     check_new_blog_post()
+#     time.sleep(86400)  # 24시간 간격으로 변경 
