@@ -3,9 +3,11 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 import pytz
 from notion_client import Client
-
+import os
 # Notion 및 기본 설정
 notion = Client(auth=os.environ["NOTION_AUTH_TOKEN"])
+# notion = Client(auth="secret_6iWa3mdFpN435mqTGA2yMwmj41QVQ7CujFHXLDeM98h")
+
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
 }
