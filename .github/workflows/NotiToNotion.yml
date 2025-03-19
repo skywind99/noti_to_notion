@@ -1,5 +1,7 @@
 name: NotiToNotion
 
+permissions:
+  contents: read
 on:
   schedule:
   #  - cron: '0 10 * * *'  # 매분 실행 (테스트용)
