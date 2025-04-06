@@ -29,7 +29,7 @@ def add_notion_page(title, link, date, creation_date, tag):
             "Person": {"people": [{"object": "user", "id": "49e9d9a7-dcb1-4ab3-88aa-6996e26700db"}]},
             "Date": {"date": {"start": date}}},
             "CreationDate": {"rich_text": [{"text": {"content": creation_date}}]},
-            "Tag": {"multi_select": [{"name": tag}]}
+            "Tag": {"select": [{"name": tag}]}
         
     }
     notion.pages.create(**new_page)
