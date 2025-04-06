@@ -7,7 +7,7 @@
 # import os
 # # Notion 및 기본 설정
 # #notion = Client(auth=os.environ["NOTION_AUTH_TOKEN"])
-# notion = Client(auth="secret_6iWa3mdFpN435mqTGA2yMwmj41QVQ7CujFHXLDeM98h")
+
 
 # headers = {
 #     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
@@ -142,7 +142,7 @@ kst = pytz.timezone('Asia/Seoul')
 SEARCH_URL = "https://www.seti.go.kr/common/bbs/management/selectCmmnBBSMgmtList.do?menuId=1000002747&bbsId=BBSMSTR_000000001070&pageIndex=1"
 RSS_URL = "https://rss.blog.naver.com/cgs2020.xml"
 DATABASE_ID = "e6b4a0208d45466ab2cd50f95115a5e5"
-# notion = Client(auth="secret_6iWa3mdFpN435mqTGA2yMwmj41QVQ7CujFHXLDeM98h")
+
 
 def add_notion_page(title, link, date, creation_date, tag):
     new_page = {
