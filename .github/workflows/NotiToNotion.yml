@@ -1,9 +1,11 @@
 name: NotiToNotion
 
+permissions:
+  contents: read
 on:
   schedule:
-  #  - cron: '0 10 * * *'  # 매분 실행 (테스트용)
-   - cron: '0 0 12 * *'  # 나중에 매일 1번 (KST 오전 9시)
+    - cron: '0 10 * * *'  # 매분 실행 (테스트용)
+  #  - cron: '0 0 12 * *'  # 나중에 매일 1번 (KST 오후12시)
   workflow_dispatch:
 
 jobs:
@@ -25,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 pytz notion-client
+          pip install requests beautifulsoup4 pytz notion-client lxml
 
       - name: Run notitonotion.py
         env:
