@@ -1,4 +1,5 @@
 import requests
+import re
 from bs4 import BeautifulSoup
 from datetime import datetime
 import pytz
@@ -53,7 +54,12 @@ def parse_website():
     items = []
     for row in rows:
         title = row.select_one('td.title a').get_text(strip=True)
-        link = "https://www.seti.go.kr" + row.select_one('td.title a')['href']
+        # link = "https://www.seti.go.kr" + row.select_one('td.title a')['href']
+        front_link = "https://www.seti.go.kr/common/bbs/management/selectCmmnBBSMgmtView.do?menuId=1000002747&pageIndex=1&bbscttId="
+        behind_link ="&bbsId=BBSMSTR_000000001070&searchKey=&searchWord=&etc=&searchKeyTxt=1&searchWordTxt=&perPage=10"
+        main_link = row.select_one('td.title a')['href']
+        number = re.search(r"\d+", main_link).group()
+        link = front_link + number + behind_link
         date = row.select_one('td.date').get_text(strip=True)
         items.append({"title": title, "link": link, "date": date, "tag": "study"})
     return items
