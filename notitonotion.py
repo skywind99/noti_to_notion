@@ -214,7 +214,38 @@ def parse_rss():
             if len(event_items) == 5:
                 break
     return event_items
-
+        
+def parse_science_exhibitions():
+    response = requests.get(SEARCH_URL, headers=headers)
+    if response.status_code != 200:
+        print(f"Website fetch error: {response.status_code}")
+        return []
+    
+    soup = BeautifulSoup(response.content, 'html.parser')
+    
+    # 과학관의 게시물만 파싱
+    items = []
+    bbslist = soup.select('ul.bbslist li')  # 'ul.bbslist' 내의 'li' 태그들
+    
+    for item in bbslist:
+        title_tag = item.select_one('.title.ellipsis.multiline')  # 제목 클래스가 'ellipsis multiline'인 태그
+        if title_tag:
+            title = title_tag.get_text(strip=True)
+            link = item.select_one('a')['href']
+            date = item.select_one('.date')  # 날짜 클래스를 기준으로 추출
+            date_str = date.get_text(strip=True) if date else "Unknown"
+            
+            # 날짜 형식 변환 (yy-mm-dd → yyyy-mm-dd)
+            if len(date_str) == 8:
+                parsed_date = datetime.strptime(date_str, "%y-%m-%d")
+                iso_date = parsed_date.strftime("%Y-%m-%d")
+            else:
+                iso_date = date_str
+            
+            items.append({"title": title, "link": link, "date": iso_date, "tag": "exhibition"})
+    
+    return items
+        
 def update_notion_with_new_posts():
     current_time = datetime.now(kst).isoformat()
     sources = [("Website", parse_website), ("RSS", parse_rss)]
