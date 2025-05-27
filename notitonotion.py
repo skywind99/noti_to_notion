@@ -62,7 +62,7 @@ def parse_website():
         return []
     soup = BeautifulSoup(response.content, 'html.parser')
     rows = soup.select('tbody tr')[:5]
-    science_items = []
+    items = []
     for row in rows:
         title = row.select_one('td.title a').get_text(strip=True)
         front_link = "https://www.seti.go.kr/common/bbs/management/selectCmmnBBSMgmtView.do?menuId=1000002747&pageIndex=1&bbscttId="
@@ -76,8 +76,8 @@ def parse_website():
             iso_date = parsed_date.strftime("%Y-%m-%d")
         else:
             iso_date = date_str
-        science_items.append({"title": title, "link": link, "date": iso_date, "tag": "study"})
-    return science_items
+        items.append({"title": title, "link": link, "date": iso_date, "tag": "study"})
+    return items
 
 def parse_rss():
     response = session.get(RSS_URL, headers=headers)
@@ -118,7 +118,7 @@ def parse_science_exhibitions():
     
     print(f"Found {len(list_items)} items in Science exhibitions")
     
-    for i, item in enumerate(list_items[:5]):  # 최대 5개만 처리
+    for i, item in enumerate(list_items[:12]):  # 최대 5개만 처리
         try:
             # 제목 추출
             title_tag = item.select_one('.title.ellipsis.multiline')
