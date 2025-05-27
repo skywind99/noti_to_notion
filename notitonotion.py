@@ -106,11 +106,15 @@ def parse_science_exhibitions():
     if response.status_code != 200:
         print(f"Website fetch error: {response.status_code}")
         return []
+    
     soup = BeautifulSoup(response.content, 'html.parser')
     
     # 'ul.bbslist' 내의 'li' 태그들 순차적으로 처리
     items = []
     bbslist = soup.select('ul.bbslist li')  # 'ul.bbslist' 내의 'li' 태그들
+    
+    if not bbslist:
+        print("No items found in ul.bbslist")
     
     for item in bbslist:
         title_tag = item.select_one('.title.ellipsis.multiline')  # 제목 클래스가 'ellipsis multiline'인 태그
@@ -132,7 +136,15 @@ def parse_science_exhibitions():
 
             # 추출한 제목, 링크, 날짜 정보를 items 리스트에 추가
             items.append({"title": title, "link": link, "date": iso_date, "tag": "exhibition"})
+        else:
+            print("No title found for an item")
     
+    # 파싱한 항목들 확인
+    if items:
+        print(f"Found {len(items)} items in Science section")
+    else:
+        print("No items to add to Notion from Science section")
+
     return items
 
 
