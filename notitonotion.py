@@ -142,7 +142,7 @@ kst = pytz.timezone('Asia/Seoul')
 SEARCH_URL = "https://www.seti.go.kr/common/bbs/management/selectCmmnBBSMgmtList.do?menuId=1000002747&bbsId=BBSMSTR_000000001070&pageIndex=1"
 RSS_URL = "https://rss.blog.naver.com/cgs2020.xml"
 DATABASE_ID = "e6b4a0208d45466ab2cd50f95115a5e5"
-
+Science_URL = "https://smart.science.go.kr/exhibitions/list.action?menuCd=DOM_000000101003001000&contentsSid=47"
 
 def add_notion_page(title, link, date, creation_date, tag):
     new_page = {
@@ -216,7 +216,7 @@ def parse_rss():
     return event_items
         
 def parse_science_exhibitions():
-    response = requests.get(SEARCH_URL, headers=headers)
+    response = requests.get(Science_URL, headers=headers)
     if response.status_code != 200:
         print(f"Website fetch error: {response.status_code}")
         return []
