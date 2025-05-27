@@ -93,7 +93,8 @@ def parse_rss():
             title = item.find('title').get_text(strip=True)
             link = item.find('link').get_text(strip=True)
             pub_date = item.find('pubDate').get_text(strip=True)
-            parsed_date = email.utils.parsedate_to_datetime(pub_date)
+            # 이메일 없이 직접 날짜 처리
+            parsed_date = datetime.strptime(pub_date, "%a, %d %b %Y %H:%M:%S %z")
             iso_date = parsed_date.isoformat()
             event_items.append({"title": title, "link": link, "date": iso_date, "tag": "Theater"})
             if len(event_items) == 5:
