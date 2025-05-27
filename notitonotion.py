@@ -107,135 +107,67 @@ def parse_science_exhibitions():
         return []
     
     soup = BeautifulSoup(response.content, 'html.parser')
-    
-    # 디버깅을 위해 HTML 구조 확인 (필요시 주석 해제)
-    # print("=== HTML Structure ===")
-    # print(soup.prettify()[:2000])  # 처음 2000자만 출력
-    
     items = []
     
-    # 여러 가능한 셀렉터로 시도
-    selectors = [
-        'ul.bbsList li',
-        '.bbsList li', 
-        'ul li',
-        '.list-item',
-        '.exhibition-item',
-        'tr',  # 테이블 형태일 경우
-        '.item'
-    ]
+    # ul.bbsList 내의 li 태그들 선택
+    list_items = soup.select('ul.bbsList li')
     
-    found_items = False
+    if not list_items:
+        print("No items found in ul.bbsList")
+        return []
     
-    for selector in selectors:
-        list_items = soup.select(selector)
-        if list_items:
-            print(f"Found {len(list_items)} items with selector: {selector}")
-            found_items = True
+    print(f"Found {len(list_items)} items in Science exhibitions")
+    
+    for i, item in enumerate(list_items[:5]):  # 최대 5개만 처리
+        try:
+            # 제목 추출
+            title_tag = item.select_one('.title.ellipsis.multiline')
+            if not title_tag:
+                continue
+            title = title_tag.get_text(strip=True)
             
-            for i, item in enumerate(list_items[:10]):  # 최대 10개만 처리
+            # 링크 추출
+            link_tag = item.select_one('a')
+            if link_tag and link_tag.get('href'):
+                href = link_tag['href']
+                link = "https://smart.science.go.kr" + href
+            else:
+                continue
+            
+            # 날짜 추출
+            date_tag = item.select_one('.date')
+            if date_tag:
+                date_str = date_tag.get_text(strip=True)
+                # "2025.05.31 ~ 2025.06.01" 형식에서 앞의 날짜만 추출
+                if ' ~ ' in date_str:
+                    start_date = date_str.split(' ~ ')[0].strip()
+                else:
+                    start_date = date_str
+                
+                # 날짜 형식 변환 (2025.05.31 -> 2025-05-31)
                 try:
-                    # 다양한 방법으로 제목 추출 시도
-                    title = None
-                    title_selectors = [
-                        '.title.ellipsis.multiline',
-                        '.title',
-                        'a',
-                        'h3',
-                        'h4',
-                        '.subject',
-                        '.name'
-                    ]
-                    
-                    for title_sel in title_selectors:
-                        title_tag = item.select_one(title_sel)
-                        if title_tag:
-                            title = title_tag.get_text(strip=True)
-                            if title:
-                                break
-                    
-                    if not title:
-                        continue
-                    
-                    # 링크 추출
-                    link = None
-                    link_tag = item.select_one('a')
-                    if link_tag and link_tag.get('href'):
-                        href = link_tag['href']
-                        if href.startswith('http'):
-                            link = href
-                        else:
-                            link = "https://smart.science.go.kr" + href
-                    
-                    if not link:
-                        link = Science_URL  # 기본 링크로 설정
-                    
-                    # 날짜 추출
-                    date_str = None
-                    date_selectors = ['.date', '.regDate', '.period', 'time']
-                    
-                    for date_sel in date_selectors:
-                        date_tag = item.select_one(date_sel)
-                        if date_tag:
-                            date_str = date_tag.get_text(strip=True)
-                            if date_str:
-                                break
-                    
-                    # 날짜 형식 변환
-                    iso_date = None
-                    if date_str:
-                        try:
-                            # 다양한 날짜 형식 시도
-                            date_formats = [
-                                "%Y.%m.%d",
-                                "%Y-%m-%d", 
-                                "%y.%m.%d",
-                                "%y-%m-%d",
-                                "%Y/%m/%d"
-                            ]
-                            
-                            for fmt in date_formats:
-                                try:
-                                    parsed_date = datetime.strptime(date_str, fmt)
-                                    iso_date = parsed_date.strftime("%Y-%m-%d")
-                                    break
-                                except ValueError:
-                                    continue
-                        except:
-                            pass
-                    
-                    if not iso_date:
-                        # 현재 날짜 사용
-                        iso_date = datetime.now().strftime("%Y-%m-%d")
-                    
-                    print(f"Item {i+1}: Title='{title}', Link='{link}', Date='{iso_date}'")
-                    
-                    items.append({
-                        "title": title, 
-                        "link": link, 
-                        "date": iso_date, 
-                        "tag": "exhibition"
-                    })
-                    
-                except Exception as e:
-                    print(f"Error processing item {i+1}: {e}")
-                    continue
+                    parsed_date = datetime.strptime(start_date, "%Y.%m.%d")
+                    iso_date = parsed_date.strftime("%Y-%m-%d")
+                except ValueError:
+                    iso_date = datetime.now().strftime("%Y-%m-%d")
+            else:
+                iso_date = datetime.now().strftime("%Y-%m-%d")
             
-            break  # 성공적으로 파싱했으면 다른 셀렉터 시도하지 않음
-    
-    if not found_items:
-        print("No items found with any selector. Printing page structure...")
-        # 페이지의 주요 구조 출력
-        for tag in ['ul', 'ol', 'div', 'table', 'section']:
-            elements = soup.find_all(tag, limit=5)
-            if elements:
-                print(f"\n=== {tag.upper()} elements ===")
-                for elem in elements:
-                    classes = elem.get('class', [])
-                    print(f"Classes: {classes}")
+            print(f"Item {i+1}: Title='{title}', Date='{iso_date}'")
+            
+            items.append({
+                "title": title, 
+                "link": link, 
+                "date": iso_date, 
+                "tag": "exhibition"
+            })
+            
+        except Exception as e:
+            print(f"Error processing item {i+1}: {e}")
+            continue
     
     print(f"Total items found: {len(items)}")
-    return items[:5]  # 최대 5개만 반환
+    return items
 
 def update_notion_with_new_posts():
     current_time = datetime.now(kst).isoformat()
