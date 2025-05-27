@@ -107,22 +107,34 @@ def parse_science_exhibitions():
         print(f"Website fetch error: {response.status_code}")
         return []
     soup = BeautifulSoup(response.content, 'html.parser')
+    
+    # 'ul.bbslist' 내의 'li' 태그들 순차적으로 처리
     items = []
-    bbslist = soup.select('ul.bbslist li')
+    bbslist = soup.select('ul.bbslist li')  # 'ul.bbslist' 내의 'li' 태그들
+    
     for item in bbslist:
-        title_tag = item.select_one('.title.ellipsis.multiline')
+        title_tag = item.select_one('.title.ellipsis.multiline')  # 제목 클래스가 'ellipsis multiline'인 태그
         if title_tag:
             title = title_tag.get_text(strip=True)
-            link = item.select_one('a')['href']
-            date = item.select_one('.date')
+            link = item.select_one('a')['href']  # 링크는 a 태그에서 추출
+            date = item.select_one('.date')  # 날짜 클래스에서 추출
             date_str = date.get_text(strip=True) if date else "Unknown"
+            
+            # 날짜 형식 변환 (yy-mm-dd → yyyy-mm-dd)
             if len(date_str) == 8:
-                parsed_date = datetime.strptime(date_str, "%y-%m-%d")
-                iso_date = parsed_date.strftime("%Y-%m-%d")
+                try:
+                    parsed_date = datetime.strptime(date_str, "%y-%m-%d")
+                    iso_date = parsed_date.strftime("%Y-%m-%d")
+                except ValueError:
+                    iso_date = date_str
             else:
                 iso_date = date_str
+
+            # 추출한 제목, 링크, 날짜 정보를 items 리스트에 추가
             items.append({"title": title, "link": link, "date": iso_date, "tag": "exhibition"})
+    
     return items
+
 
 def update_notion_with_new_posts():
     current_time = datetime.now(kst).isoformat()
