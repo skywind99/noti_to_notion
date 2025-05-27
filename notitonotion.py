@@ -176,7 +176,7 @@ def parse_website():
         return []
     soup = BeautifulSoup(response.content, 'html.parser')
     rows = soup.select('tbody tr')[:5]
-    items = []
+    science_items = []
     for row in rows:
         title = row.select_one('td.title a').get_text(strip=True)
         front_link = "https://www.seti.go.kr/common/bbs/management/selectCmmnBBSMgmtView.do?menuId=1000002747&pageIndex=1&bbscttId="
@@ -191,8 +191,8 @@ def parse_website():
             iso_date = parsed_date.strftime("%Y-%m-%d")
         else:
             iso_date = date_str
-        items.append({"title": title, "link": link, "date": iso_date, "tag": "study"})
-    return items
+        science_items.append({"title": title, "link": link, "date": iso_date, "tag": "study"})
+    return science_items
 
 def parse_rss():
     response = requests.get(RSS_URL, headers=headers)
@@ -248,7 +248,7 @@ def parse_science_exhibitions():
         
 def update_notion_with_new_posts():
     current_time = datetime.now(kst).isoformat()
-    sources = [("Website", parse_website), ("RSS", parse_rss)]
+    sources = [("Website", parse_website), ("RSS", parse_rss),("Science",parse_science_exhibitions)]
     for source_name, parse_func in sources:
         print(f"Checking {source_name}...")
         items = parse_func()
