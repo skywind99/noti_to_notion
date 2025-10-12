@@ -229,7 +229,7 @@ def parse_science_notices():
 
 def update_notion_with_new_posts():
     current_time = datetime.now(kst).isoformat()
-    sources = [("Website", parse_website), ("RSS", parse_rss), ("Science", parse_science_exhibitions)]
+    sources = [("Website", parse_website), ("RSS", parse_rss), ("Science", parse_science_notices)]
     for source_name, parse_func in sources:
         print(f"Checking {source_name}...")
         items = parse_func()
