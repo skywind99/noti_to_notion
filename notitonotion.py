@@ -168,62 +168,72 @@ def parse_rss():
     
 #     print(f"Total items found: {len(items)}")
 #     return items
-def parse_science_notices():
-    base_url = "https://www.sciencecenter.go.kr"
-    response = session.get(Science_URL, headers=headers)
+import re
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
+from datetime import datetime
+
+SCIENCE_BASE = "https://www.sciencecenter.go.kr"  # 절대경로 변환용
+
+def parse_science_notices(limit=10):
+    """
+    국립과천과학관 공지/공고 목록 파싱
+    - 대상 페이지: Science_URL (예: https://www.sciencecenter.go.kr/scipia/introduce/notice)
+    - 반환 형식: [{"title": ..., "link": ..., "date": "YYYY-MM-DD", "tag": "science"}, ...]
+    """
+    try:
+        response = session.get(Science_URL, headers=headers, timeout=15)
+    except Exception as e:
+        print(f"Website fetch error: {e}")
+        return []
+
     if response.status_code != 200:
         print(f"Website fetch error: {response.status_code}")
         return []
-    
+
     soup = BeautifulSoup(response.content, 'html.parser')
+
+    # 표 행 선택 (상단 고정공지 포함)
     rows = soup.select('#BoardTable tbody tr')
     if not rows:
-        print("No rows found in #BoardTable")
+        print("No rows found in #BoardTable tbody")
         return []
-    
-    print(f"Found {len(rows)} rows in Science notices")
+
     items = []
-    
-    for i, row in enumerate(rows):
-        if len(items) >= 12:  # 최대 12개만 처리
-            break
+    for row in rows:
         try:
-            # 제목과 링크
             a = row.select_one('td.left.title a')
             if not a or not a.get('href'):
                 continue
+
             title = a.get_text(strip=True)
-            link = urllib.parse.urljoin(base_url, a['href'])
-            
-            # 등록일 열 찾기: YYYY-MM-DD 패턴을 가진 td
-            date_td = None
+            href = a['href']
+            link = urljoin(SCIENCE_BASE, href)
+
+            # 날짜 셀 찾기: 형식이 'YYYY-MM-DD' 인 td를 우선 탐색
+            date_str = None
             for td in row.select('td'):
                 txt = td.get_text(strip=True)
                 if re.fullmatch(r'\d{4}-\d{2}-\d{2}', txt):
-                    date_td = txt
+                    date_str = txt
                     break
-            
-            if date_td:
-                try:
-                    parsed_date = datetime.strptime(date_td, "%Y-%m-%d")
-                    iso_date = parsed_date.strftime("%Y-%m-%d")
-                except ValueError:
-                    iso_date = datetime.now(kst).strftime("%Y-%m-%d")
-            else:
-                iso_date = datetime.now(kst).strftime("%Y-%m-%d")
-            
-            print(f"Item {len(items)+1}: Title='{title}', Date='{iso_date}'")
+
+            # 날짜가 없으면 건너뜀(원하면 오늘 날짜로 대체 가능)
+            if not date_str:
+                continue
+
             items.append({
                 "title": title,
                 "link": link,
-                "date": iso_date,
-                "tag": "notice"
+                "date": date_str,   # 이미 ISO 형식
+                "tag": "science"
             })
-        except Exception as e:
-            print(f"Error processing row {i+1}: {e}")
+
+            if len(items) >= limit:
+                break
+        except Exception:
             continue
-    
-    print(f"Total items found: {len(items)}")
+
     return items
 
 
