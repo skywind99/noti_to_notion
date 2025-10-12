@@ -16,7 +16,7 @@ kst = pytz.timezone('Asia/Seoul')
 SEARCH_URL = "https://www.seti.go.kr/common/bbs/management/selectCmmnBBSMgmtList.do?menuId=1000002747&bbsId=BBSMSTR_000000001070&pageIndex=1"
 RSS_URL = "https://rss.blog.naver.com/cgs2020.xml"
 DATABASE_ID = "e6b4a0208d45466ab2cd50f95115a5e5"
-Science_URL = "https://smart.science.go.kr/exhibitions/list.action?menuCd=DOM_000000101003001000&contentsSid=47"
+Science_URL = "https://www.sciencecenter.go.kr/scipia/introduce/notice"
 
 # 맞춤형 SSL Adapter 설정
 class SSLAdapter(HTTPAdapter):
