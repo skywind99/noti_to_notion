@@ -100,74 +100,132 @@ def parse_rss():
                 break
     return event_items
 
-def parse_science_exhibitions():
+# def parse_science_exhibitions():
+#     response = session.get(Science_URL, headers=headers)
+#     if response.status_code != 200:
+#         print(f"Website fetch error: {response.status_code}")
+#         return []
+    
+#     soup = BeautifulSoup(response.content, 'html.parser')
+#     items = []
+    
+#     # ul.bbsList 내의 li 태그들 선택
+#     list_items = soup.select('ul.bbsList li')
+    
+#     if not list_items:
+#         print("No items found in ul.bbsList")
+#         return []
+    
+#     print(f"Found {len(list_items)} items in Science exhibitions")
+    
+#     for i, item in enumerate(list_items[:12]):  # 최대 5개만 처리
+#         try:
+#             # 제목 추출
+#             title_tag = item.select_one('.title.ellipsis.multiline')
+#             if not title_tag:
+#                 continue
+#             title = title_tag.get_text(strip=True)
+            
+#             # 링크 추출
+#             link_tag = item.select_one('a')
+#             if link_tag and link_tag.get('href'):
+#                 href = link_tag['href']
+#                 link = "https://smart.science.go.kr" + href
+#             else:
+#                 continue
+            
+#             # 날짜 추출
+#             date_tag = item.select_one('.date')
+#             if date_tag:
+#                 date_str = date_tag.get_text(strip=True)
+#                 # "2025.05.31 ~ 2025.06.01" 형식에서 앞의 날짜만 추출
+#                 if ' ~ ' in date_str:
+#                     start_date = date_str.split(' ~ ')[0].strip()
+#                 else:
+#                     start_date = date_str
+                
+#                 # 날짜 형식 변환 (2025.05.31 -> 2025-05-31)
+#                 try:
+#                     parsed_date = datetime.strptime(start_date, "%Y.%m.%d")
+#                     iso_date = parsed_date.strftime("%Y-%m-%d")
+#                 except ValueError:
+#                     iso_date = datetime.now().strftime("%Y-%m-%d")
+#             else:
+#                 iso_date = datetime.now().strftime("%Y-%m-%d")
+            
+#             print(f"Item {i+1}: Title='{title}', Date='{iso_date}'")
+            
+#             items.append({
+#                 "title": title, 
+#                 "link": link, 
+#                 "date": iso_date, 
+#                 "tag": "exhibition"
+#             })
+            
+#         except Exception as e:
+#             print(f"Error processing item {i+1}: {e}")
+#             continue
+    
+#     print(f"Total items found: {len(items)}")
+#     return items
+def parse_science_notices():
+    base_url = "https://www.sciencecenter.go.kr"
     response = session.get(Science_URL, headers=headers)
     if response.status_code != 200:
         print(f"Website fetch error: {response.status_code}")
         return []
     
     soup = BeautifulSoup(response.content, 'html.parser')
-    items = []
-    
-    # ul.bbsList 내의 li 태그들 선택
-    list_items = soup.select('ul.bbsList li')
-    
-    if not list_items:
-        print("No items found in ul.bbsList")
+    rows = soup.select('#BoardTable tbody tr')
+    if not rows:
+        print("No rows found in #BoardTable")
         return []
     
-    print(f"Found {len(list_items)} items in Science exhibitions")
+    print(f"Found {len(rows)} rows in Science notices")
+    items = []
     
-    for i, item in enumerate(list_items[:12]):  # 최대 5개만 처리
+    for i, row in enumerate(rows):
+        if len(items) >= 12:  # 최대 12개만 처리
+            break
         try:
-            # 제목 추출
-            title_tag = item.select_one('.title.ellipsis.multiline')
-            if not title_tag:
+            # 제목과 링크
+            a = row.select_one('td.left.title a')
+            if not a or not a.get('href'):
                 continue
-            title = title_tag.get_text(strip=True)
+            title = a.get_text(strip=True)
+            link = urllib.parse.urljoin(base_url, a['href'])
             
-            # 링크 추출
-            link_tag = item.select_one('a')
-            if link_tag and link_tag.get('href'):
-                href = link_tag['href']
-                link = "https://smart.science.go.kr" + href
-            else:
-                continue
+            # 등록일 열 찾기: YYYY-MM-DD 패턴을 가진 td
+            date_td = None
+            for td in row.select('td'):
+                txt = td.get_text(strip=True)
+                if re.fullmatch(r'\d{4}-\d{2}-\d{2}', txt):
+                    date_td = txt
+                    break
             
-            # 날짜 추출
-            date_tag = item.select_one('.date')
-            if date_tag:
-                date_str = date_tag.get_text(strip=True)
-                # "2025.05.31 ~ 2025.06.01" 형식에서 앞의 날짜만 추출
-                if ' ~ ' in date_str:
-                    start_date = date_str.split(' ~ ')[0].strip()
-                else:
-                    start_date = date_str
-                
-                # 날짜 형식 변환 (2025.05.31 -> 2025-05-31)
+            if date_td:
                 try:
-                    parsed_date = datetime.strptime(start_date, "%Y.%m.%d")
+                    parsed_date = datetime.strptime(date_td, "%Y-%m-%d")
                     iso_date = parsed_date.strftime("%Y-%m-%d")
                 except ValueError:
-                    iso_date = datetime.now().strftime("%Y-%m-%d")
+                    iso_date = datetime.now(kst).strftime("%Y-%m-%d")
             else:
-                iso_date = datetime.now().strftime("%Y-%m-%d")
+                iso_date = datetime.now(kst).strftime("%Y-%m-%d")
             
-            print(f"Item {i+1}: Title='{title}', Date='{iso_date}'")
-            
+            print(f"Item {len(items)+1}: Title='{title}', Date='{iso_date}'")
             items.append({
-                "title": title, 
-                "link": link, 
-                "date": iso_date, 
-                "tag": "exhibition"
+                "title": title,
+                "link": link,
+                "date": iso_date,
+                "tag": "notice"
             })
-            
         except Exception as e:
-            print(f"Error processing item {i+1}: {e}")
+            print(f"Error processing row {i+1}: {e}")
             continue
     
     print(f"Total items found: {len(items)}")
     return items
+
 
 def update_notion_with_new_posts():
     current_time = datetime.now(kst).isoformat()
