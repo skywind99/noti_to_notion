@@ -16,7 +16,7 @@ kst = pytz.timezone('Asia/Seoul')
 SEARCH_URL = "https://www.seti.go.kr/common/bbs/management/selectCmmnBBSMgmtList.do?menuId=1000002747&bbsId=BBSMSTR_000000001070&pageIndex=1"
 RSS_URL = "https://rss.blog.naver.com/cgs2020.xml"
 DATABASE_ID = "e6b4a0208d45466ab2cd50f95115a5e5"
-Science_URL = "https://smart.science.go.kr/exhibitions/list.action?menuCd=DOM_000000101003001000&contentsSid=47"
+Science_URL = "https://www.sciencecenter.go.kr/scipia/introduce/notice"
 
 # 맞춤형 SSL Adapter 설정
 class SSLAdapter(HTTPAdapter):
@@ -100,78 +100,146 @@ def parse_rss():
                 break
     return event_items
 
-def parse_science_exhibitions():
-    response = session.get(Science_URL, headers=headers)
+# def parse_science_exhibitions():
+#     response = session.get(Science_URL, headers=headers)
+#     if response.status_code != 200:
+#         print(f"Website fetch error: {response.status_code}")
+#         return []
+    
+#     soup = BeautifulSoup(response.content, 'html.parser')
+#     items = []
+    
+#     # ul.bbsList 내의 li 태그들 선택
+#     list_items = soup.select('ul.bbsList li')
+    
+#     if not list_items:
+#         print("No items found in ul.bbsList")
+#         return []
+    
+#     print(f"Found {len(list_items)} items in Science exhibitions")
+    
+#     for i, item in enumerate(list_items[:12]):  # 최대 5개만 처리
+#         try:
+#             # 제목 추출
+#             title_tag = item.select_one('.title.ellipsis.multiline')
+#             if not title_tag:
+#                 continue
+#             title = title_tag.get_text(strip=True)
+            
+#             # 링크 추출
+#             link_tag = item.select_one('a')
+#             if link_tag and link_tag.get('href'):
+#                 href = link_tag['href']
+#                 link = "https://smart.science.go.kr" + href
+#             else:
+#                 continue
+            
+#             # 날짜 추출
+#             date_tag = item.select_one('.date')
+#             if date_tag:
+#                 date_str = date_tag.get_text(strip=True)
+#                 # "2025.05.31 ~ 2025.06.01" 형식에서 앞의 날짜만 추출
+#                 if ' ~ ' in date_str:
+#                     start_date = date_str.split(' ~ ')[0].strip()
+#                 else:
+#                     start_date = date_str
+                
+#                 # 날짜 형식 변환 (2025.05.31 -> 2025-05-31)
+#                 try:
+#                     parsed_date = datetime.strptime(start_date, "%Y.%m.%d")
+#                     iso_date = parsed_date.strftime("%Y-%m-%d")
+#                 except ValueError:
+#                     iso_date = datetime.now().strftime("%Y-%m-%d")
+#             else:
+#                 iso_date = datetime.now().strftime("%Y-%m-%d")
+            
+#             print(f"Item {i+1}: Title='{title}', Date='{iso_date}'")
+            
+#             items.append({
+#                 "title": title, 
+#                 "link": link, 
+#                 "date": iso_date, 
+#                 "tag": "exhibition"
+#             })
+            
+#         except Exception as e:
+#             print(f"Error processing item {i+1}: {e}")
+#             continue
+    
+#     print(f"Total items found: {len(items)}")
+#     return items
+import re
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
+from datetime import datetime
+
+SCIENCE_BASE = "https://www.sciencecenter.go.kr"  # 절대경로 변환용
+
+def parse_science_notices(limit=10):
+    """
+    국립과천과학관 공지/공고 목록 파싱
+    - 대상 페이지: Science_URL (예: https://www.sciencecenter.go.kr/scipia/introduce/notice)
+    - 반환 형식: [{"title": ..., "link": ..., "date": "YYYY-MM-DD", "tag": "science"}, ...]
+    """
+    try:
+        response = session.get(Science_URL, headers=headers, timeout=15)
+    except Exception as e:
+        print(f"Website fetch error: {e}")
+        return []
+
     if response.status_code != 200:
         print(f"Website fetch error: {response.status_code}")
         return []
-    
+
     soup = BeautifulSoup(response.content, 'html.parser')
-    items = []
-    
-    # ul.bbsList 내의 li 태그들 선택
-    list_items = soup.select('ul.bbsList li')
-    
-    if not list_items:
-        print("No items found in ul.bbsList")
+
+    # 표 행 선택 (상단 고정공지 포함)
+    rows = soup.select('#BoardTable tbody tr')
+    if not rows:
+        print("No rows found in #BoardTable tbody")
         return []
-    
-    print(f"Found {len(list_items)} items in Science exhibitions")
-    
-    for i, item in enumerate(list_items[:12]):  # 최대 5개만 처리
+
+    items = []
+    for row in rows:
         try:
-            # 제목 추출
-            title_tag = item.select_one('.title.ellipsis.multiline')
-            if not title_tag:
+            a = row.select_one('td.left.title a')
+            if not a or not a.get('href'):
                 continue
-            title = title_tag.get_text(strip=True)
-            
-            # 링크 추출
-            link_tag = item.select_one('a')
-            if link_tag and link_tag.get('href'):
-                href = link_tag['href']
-                link = "https://smart.science.go.kr" + href
-            else:
+
+            title = a.get_text(strip=True)
+            href = a['href']
+            link = urljoin(SCIENCE_BASE, href)
+
+            # 날짜 셀 찾기: 형식이 'YYYY-MM-DD' 인 td를 우선 탐색
+            date_str = None
+            for td in row.select('td'):
+                txt = td.get_text(strip=True)
+                if re.fullmatch(r'\d{4}-\d{2}-\d{2}', txt):
+                    date_str = txt
+                    break
+
+            # 날짜가 없으면 건너뜀(원하면 오늘 날짜로 대체 가능)
+            if not date_str:
                 continue
-            
-            # 날짜 추출
-            date_tag = item.select_one('.date')
-            if date_tag:
-                date_str = date_tag.get_text(strip=True)
-                # "2025.05.31 ~ 2025.06.01" 형식에서 앞의 날짜만 추출
-                if ' ~ ' in date_str:
-                    start_date = date_str.split(' ~ ')[0].strip()
-                else:
-                    start_date = date_str
-                
-                # 날짜 형식 변환 (2025.05.31 -> 2025-05-31)
-                try:
-                    parsed_date = datetime.strptime(start_date, "%Y.%m.%d")
-                    iso_date = parsed_date.strftime("%Y-%m-%d")
-                except ValueError:
-                    iso_date = datetime.now().strftime("%Y-%m-%d")
-            else:
-                iso_date = datetime.now().strftime("%Y-%m-%d")
-            
-            print(f"Item {i+1}: Title='{title}', Date='{iso_date}'")
-            
+
             items.append({
-                "title": title, 
-                "link": link, 
-                "date": iso_date, 
-                "tag": "exhibition"
+                "title": title,
+                "link": link,
+                "date": date_str,   # 이미 ISO 형식
+                "tag": "science"
             })
-            
-        except Exception as e:
-            print(f"Error processing item {i+1}: {e}")
+
+            if len(items) >= limit:
+                break
+        except Exception:
             continue
-    
-    print(f"Total items found: {len(items)}")
+
     return items
+
 
 def update_notion_with_new_posts():
     current_time = datetime.now(kst).isoformat()
-    sources = [("Website", parse_website), ("RSS", parse_rss), ("Science", parse_science_exhibitions)]
+    sources = [("Website", parse_website), ("RSS", parse_rss), ("Science", parse_science_notices)]
     for source_name, parse_func in sources:
         print(f"Checking {source_name}...")
         items = parse_func()
