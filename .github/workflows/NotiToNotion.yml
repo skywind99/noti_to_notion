@@ -1,36 +1,26 @@
 name: NotiToNotion
-
 permissions:
   contents: read
 on:
   schedule:
     - cron: '0 10 * * *'
   workflow_dispatch:
-
 jobs:
   scrape-and-update:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
       - name: List directory contents
         run: ls -la
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          # 아래 줄에서 notion-client 빼기!
-          pip install requests beautifulsoup4 pytz lxml
-          pip install notion-client==2.6.0
-
       - name: Run notitonotion.py
         env:
           NOTION_AUTH_TOKEN: ${{ secrets.NOTION_AUTH_TOKEN }}
