@@ -49,11 +49,26 @@ def add_notion_page(title, link, date, creation_date, tag):
         print(f"Error adding to Notion: {e}")
 
 def is_post_in_notion(title):
-    response = notion.databases.query(
-        database_id=DATABASE_ID,
-        filter={"property": "Name", "title": {"equals": title}}
-    )
-    return len(response.get("results", [])) > 0
+    try:
+        # 필터 없이 전체 조회
+        response = notion.databases.query(database_id=DATABASE_ID)
+        
+        # 결과에서 제목이 일치하는 항목 찾기
+        for page in response.get("results", []):
+            page_title = ""
+            if "properties" in page and "Name" in page["properties"]:
+                title_property = page["properties"]["Name"]
+                if "title" in title_property and len(title_property["title"]) > 0:
+                    page_title = title_property["title"][0]["text"]["content"]
+            
+            if page_title == title:
+                return True
+        
+        return False
+    except Exception as e:
+        print(f"Error checking Notion: {e}")
+        return False
+        
 
 def parse_website():
     response = session.get(SEARCH_URL, headers=headers)
