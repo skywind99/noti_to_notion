@@ -29,7 +29,7 @@ jobs:
           pip install -r requirements.txt
           # 아래 줄에서 notion-client 빼기!
           pip install requests beautifulsoup4 pytz lxml
-pip install notion-client==2.6.0
+          pip install notion-client==2.6.0
 
       - name: Run notitonotion.py
         env:
