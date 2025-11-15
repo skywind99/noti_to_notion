@@ -51,53 +51,63 @@ def add_notion_page(title, link, date, creation_date, tag):
 def is_post_in_notion(title, url=None):
     """
     Notion DB에 동일한 게시물이 있는지 확인
-    1순위: URL로 검색 (더 정확함)
-    2순위: 제목으로 검색
+    - httpx로 직접 API 호출
     """
+    import httpx
+    
+    headers = {
+        "Authorization": f"Bearer {os.environ['NOTION_AUTH_TOKEN']}",
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json"
+    }
+    
     try:
-        # Notion API v2 방식: notion.request()로 직접 POST 요청
-        
-        # URL이 있으면 URL로 먼저 검색 (더 정확)
+        # URL로 먼저 검색
         if url:
-            try:
-                response = notion.request(
-                    method="POST",
-                    path=f"databases/{DATABASE_ID}/query",
-                    body={
-                        "filter": {
-                            "property": "URL",
-                            "url": {
-                                "equals": url
-                            }
-                        }
-                    }
-                )
-                if len(response.get("results", [])) > 0:
-                    return True
-            except:
-                pass  # URL 검색 실패 시 제목으로 검색 계속
-        
-        # 제목으로 검색
-        response = notion.request(
-            method="POST",
-            path=f"databases/{DATABASE_ID}/query",
-            body={
+            payload = {
                 "filter": {
-                    "property": "Name",
-                    "title": {
-                        "equals": title
+                    "property": "URL",
+                    "url": {
+                        "equals": url
                     }
                 }
             }
+            response = httpx.post(
+                f"https://api.notion.com/v1/databases/{DATABASE_ID}/query",
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
+            if response.status_code == 200:
+                data = response.json()
+                if len(data.get("results", [])) > 0:
+                    return True
+        
+        # 제목으로 검색
+        payload = {
+            "filter": {
+                "property": "Name",
+                "title": {
+                    "equals": title
+                }
+            }
+        }
+        response = httpx.post(
+            f"https://api.notion.com/v1/databases/{DATABASE_ID}/query",
+            headers=headers,
+            json=payload,
+            timeout=30
         )
         
-        return len(response.get("results", [])) > 0
-        
+        if response.status_code == 200:
+            data = response.json()
+            return len(data.get("results", [])) > 0
+        else:
+            print(f"Notion API error: {response.status_code} - {response.text}")
+            return False
+            
     except Exception as e:
         print(f"Error checking Notion: {e}")
-        print(f"Error type: {type(e).__name__}")
-        import traceback
-        traceback.print_exc()
         return False
         
 
