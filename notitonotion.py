@@ -14,6 +14,7 @@ notion = Client(auth=os.environ["NOTION_AUTH_TOKEN"])
 headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"}
 kst = pytz.timezone('Asia/Seoul')
 SEARCH_URL = "https://www.seti.go.kr/common/bbs/management/selectCmmnBBSMgmtList.do?menuId=1000002747&bbsId=BBSMSTR_000000001070&pageIndex=1"
+SEARCH_URL_KANGWON = "https://www.geti.or.kr/common/bbs/management/selectCmmnBBSMgmtList.do?menuId=1000005661&bbsId=BBSMSTR_000000000738&pageIndex=1"
 RSS_URL = "https://rss.blog.naver.com/cgs2020.xml"
 DATABASE_ID = "e6b4a0208d45466ab2cd50f95115a5e5"
 Science_URL = "https://www.sciencecenter.go.kr/scipia/introduce/notice"
@@ -161,6 +162,30 @@ def parse_website():
             iso_date = date_str
         items.append({"title": title, "link": link, "date": iso_date, "tag": "study"})
     return items
+    
+def parse_website_kangwon():
+    response = session.get(SEARCH_URL_KANGWON, headers=headers)
+    if response.status_code != 200:
+        print(f"Website fetch error: {response.status_code}")
+        return []
+    soup = BeautifulSoup(response.content, 'html.parser')
+    rows = soup.select('tbody tr')[:5]
+    items = []
+    for row in rows:
+        title = row.select_one('td.title a').get_text(strip=True)
+        front_link = "https://www.geti.or.kr/common/bbs/management/selectCmmnBBSMgmtView.do?menuId=1000005661&pageIndex=1&bbscttId="
+        behind_link = "&bbsId=BBSMSTR_000000000738&searchKey=&searchWord=&etc=&searchKeyTxt=1&searchWordTxt=&perPage=10"
+        main_link = row.select_one('td.title a')['href']
+        number = re.search(r"\d+", main_link).group()
+        link = front_link + number + behind_link
+        date_str = row.select_one('td.date').get_text(strip=True)
+        if len(date_str) == 8:
+            parsed_date = datetime.strptime(date_str, "%y-%m-%d")
+            iso_date = parsed_date.strftime("%Y-%m-%d")
+        else:
+            iso_date = date_str
+        items.append({"title": title, "link": link, "date": iso_date, "tag": "study"})
+    return items
 
 def parse_rss():
     response = session.get(RSS_URL, headers=headers)
@@ -245,7 +270,7 @@ def parse_science_notices(limit=10):
 
 def update_notion_with_new_posts():
     current_time = datetime.now(kst).isoformat()
-    sources = [("Website", parse_website), ("RSS", parse_rss), ("Science", parse_science_notices)]
+    sources = [("Website", parse_website), ("RSS", parse_rss), ("Science", parse_science_notices),("Website_kangwon",parse_website_kangwon)]
     
     if DRY_RUN:
         print("\n" + "="*50)
