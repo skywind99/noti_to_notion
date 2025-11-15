@@ -48,23 +48,40 @@ def add_notion_page(title, link, date, creation_date, tag):
     except Exception as e:
         print(f"Error adding to Notion: {e}")
 
-def is_post_in_notion(title):
+def is_post_in_notion(title, url=None):
+    """
+    Notion DB에 동일한 게시물이 있는지 확인
+    1순위: URL로 검색 (더 정확함)
+    2순위: 제목으로 검색
+    """
     try:
-        # 필터 없이 전체 조회
-        response = notion.databases.query(database_id=DATABASE_ID)
-        
-        # 결과에서 제목이 일치하는 항목 찾기
-        for page in response.get("results", []):
-            page_title = ""
-            if "properties" in page and "Name" in page["properties"]:
-                title_property = page["properties"]["Name"]
-                if "title" in title_property and len(title_property["title"]) > 0:
-                    page_title = title_property["title"][0]["text"]["content"]
-            
-            if page_title == title:
+        # URL이 있으면 URL로 먼저 검색 (더 정확)
+        if url:
+            response = notion.databases.query(
+                database_id=DATABASE_ID,
+                filter={
+                    "property": "URL",
+                    "url": {
+                        "equals": url
+                    }
+                }
+            )
+            if len(response.get("results", [])) > 0:
                 return True
         
-        return False
+        # URL 검색 실패 시 제목으로 검색
+        response = notion.databases.query(
+            database_id=DATABASE_ID,
+            filter={
+                "property": "Name",
+                "title": {
+                    "equals": title
+                }
+            }
+        )
+        
+        return len(response.get("results", [])) > 0
+        
     except Exception as e:
         print(f"Error checking Notion: {e}")
         return False
@@ -115,86 +132,11 @@ def parse_rss():
                 break
     return event_items
 
-# def parse_science_exhibitions():
-#     response = session.get(Science_URL, headers=headers)
-#     if response.status_code != 200:
-#         print(f"Website fetch error: {response.status_code}")
-#         return []
-    
-#     soup = BeautifulSoup(response.content, 'html.parser')
-#     items = []
-    
-#     # ul.bbsList 내의 li 태그들 선택
-#     list_items = soup.select('ul.bbsList li')
-    
-#     if not list_items:
-#         print("No items found in ul.bbsList")
-#         return []
-    
-#     print(f"Found {len(list_items)} items in Science exhibitions")
-    
-#     for i, item in enumerate(list_items[:12]):  # 최대 5개만 처리
-#         try:
-#             # 제목 추출
-#             title_tag = item.select_one('.title.ellipsis.multiline')
-#             if not title_tag:
-#                 continue
-#             title = title_tag.get_text(strip=True)
-            
-#             # 링크 추출
-#             link_tag = item.select_one('a')
-#             if link_tag and link_tag.get('href'):
-#                 href = link_tag['href']
-#                 link = "https://smart.science.go.kr" + href
-#             else:
-#                 continue
-            
-#             # 날짜 추출
-#             date_tag = item.select_one('.date')
-#             if date_tag:
-#                 date_str = date_tag.get_text(strip=True)
-#                 # "2025.05.31 ~ 2025.06.01" 형식에서 앞의 날짜만 추출
-#                 if ' ~ ' in date_str:
-#                     start_date = date_str.split(' ~ ')[0].strip()
-#                 else:
-#                     start_date = date_str
-                
-#                 # 날짜 형식 변환 (2025.05.31 -> 2025-05-31)
-#                 try:
-#                     parsed_date = datetime.strptime(start_date, "%Y.%m.%d")
-#                     iso_date = parsed_date.strftime("%Y-%m-%d")
-#                 except ValueError:
-#                     iso_date = datetime.now().strftime("%Y-%m-%d")
-#             else:
-#                 iso_date = datetime.now().strftime("%Y-%m-%d")
-            
-#             print(f"Item {i+1}: Title='{title}', Date='{iso_date}'")
-            
-#             items.append({
-#                 "title": title, 
-#                 "link": link, 
-#                 "date": iso_date, 
-#                 "tag": "exhibition"
-#             })
-            
-#         except Exception as e:
-#             print(f"Error processing item {i+1}: {e}")
-#             continue
-    
-#     print(f"Total items found: {len(items)}")
-#     return items
-import re
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin
-from datetime import datetime
-
-SCIENCE_BASE = "https://www.sciencecenter.go.kr"  # 절대경로 변환용
+SCIENCE_BASE = "https://www.sciencecenter.go.kr"
 
 def parse_science_notices(limit=10):
     """
     국립과천과학관 공지/공고 목록 파싱
-    - 대상 페이지: Science_URL (예: https://www.sciencecenter.go.kr/scipia/introduce/notice)
-    - 반환 형식: [{"title": ..., "link": ..., "date": "YYYY-MM-DD", "tag": "science"}, ...]
     """
     try:
         response = session.get(Science_URL, headers=headers, timeout=15)
@@ -208,7 +150,6 @@ def parse_science_notices(limit=10):
 
     soup = BeautifulSoup(response.content, 'html.parser')
 
-    # 표 행 선택 (상단 고정공지 포함)
     rows = soup.select('#BoardTable tbody tr')
     if not rows:
         print("No rows found in #BoardTable tbody")
@@ -223,9 +164,9 @@ def parse_science_notices(limit=10):
 
             title = a.get_text(strip=True)
             href = a['href']
+            from urllib.parse import urljoin
             link = urljoin(SCIENCE_BASE, href)
 
-            # 날짜 셀 찾기: 형식이 'YYYY-MM-DD' 인 td를 우선 탐색
             date_str = None
             for td in row.select('td'):
                 txt = td.get_text(strip=True)
@@ -233,14 +174,13 @@ def parse_science_notices(limit=10):
                     date_str = txt
                     break
 
-            # 날짜가 없으면 건너뜀(원하면 오늘 날짜로 대체 가능)
             if not date_str:
                 continue
 
             items.append({
                 "title": title,
                 "link": link,
-                "date": date_str,   # 이미 ISO 형식
+                "date": date_str,
                 "tag": "science"
             })
 
@@ -255,15 +195,33 @@ def parse_science_notices(limit=10):
 def update_notion_with_new_posts():
     current_time = datetime.now(kst).isoformat()
     sources = [("Website", parse_website), ("RSS", parse_rss), ("Science", parse_science_notices)]
+    
+    total_new = 0
+    total_skipped = 0
+    
     for source_name, parse_func in sources:
+        print(f"\n{'='*50}")
         print(f"Checking {source_name}...")
+        print(f"{'='*50}")
+        
         items = parse_func()
+        print(f"Found {len(items)} items from {source_name}")
+        
         for item in items:
-            if not is_post_in_notion(item["title"]):
-                print(f"New post found in {source_name}: {item['title']}")
+            # URL과 제목으로 중복 체크
+            if not is_post_in_notion(item["title"], item.get("link")):
+                print(f"✅ NEW: {item['title']}")
                 add_notion_page(item["title"], item["link"], current_time, item["date"], item["tag"])
+                total_new += 1
             else:
-                print(f"Post '{item['title']}' already exists in Notion from {source_name}. Skipping.")
+                print(f"⏭️  SKIP: {item['title'][:50]}... (already exists)")
+                total_skipped += 1
+    
+    print(f"\n{'='*50}")
+    print(f"📊 Summary:")
+    print(f"  - New posts added: {total_new}")
+    print(f"  - Posts skipped (duplicates): {total_skipped}")
+    print(f"{'='*50}")
 
 if __name__ == "__main__":
     update_notion_with_new_posts()
