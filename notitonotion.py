@@ -18,6 +18,9 @@ RSS_URL = "https://rss.blog.naver.com/cgs2020.xml"
 DATABASE_ID = "e6b4a0208d45466ab2cd50f95115a5e5"
 Science_URL = "https://www.sciencecenter.go.kr/scipia/introduce/notice"
 
+# 테스트 모드: True로 설정하면 실제로 Notion에 추가하지 않음
+DRY_RUN = os.environ.get("DRY_RUN", "false").lower() == "true"
+
 # 맞춤형 SSL Adapter 설정
 class SSLAdapter(HTTPAdapter):
     def init_poolmanager(self, *args, **kwargs):
@@ -31,6 +34,13 @@ session = requests.Session()
 session.mount('https://', SSLAdapter())
 
 def add_notion_page(title, link, date, creation_date, tag):
+    if DRY_RUN:
+        print(f"[DRY RUN] Would add to Notion: {title}")
+        # 캐시에 추가 (다음 체크 시 중복 방지)
+        cache_key = f"{title}||{link}" if link else title
+        added_items_cache.add(cache_key)
+        return
+    
     new_page = {
         "parent": {"database_id": DATABASE_ID},
         "properties": {
@@ -45,14 +55,27 @@ def add_notion_page(title, link, date, creation_date, tag):
     try:
         notion.pages.create(**new_page)
         print(f"Added to Notion: {title}")
+        # 캐시에 추가 (다음 체크 시 중복 방지)
+        cache_key = f"{title}||{link}" if link else title
+        added_items_cache.add(cache_key)
     except Exception as e:
         print(f"Error adding to Notion: {e}")
+
+# 실행 중 추가된 항목을 캐시 (중복 방지)
+added_items_cache = set()
 
 def is_post_in_notion(title, url=None):
     """
     Notion DB에 동일한 게시물이 있는지 확인
-    - httpx로 직접 API 호출
+    1. 먼저 현재 실행 중 캐시 확인 (빠름)
+    2. httpx로 Notion API 직접 호출하여 DB 확인
     """
+    # 1. 캐시 확인 (이번 실행에서 이미 추가한 항목)
+    cache_key = f"{title}||{url}" if url else title
+    if cache_key in added_items_cache:
+        return True
+    
+    # 2. Notion DB 확인
     import httpx
     
     headers = {
@@ -81,6 +104,7 @@ def is_post_in_notion(title, url=None):
             if response.status_code == 200:
                 data = response.json()
                 if len(data.get("results", [])) > 0:
+                    added_items_cache.add(cache_key)  # 캐시에 추가
                     return True
         
         # 제목으로 검색
@@ -101,7 +125,10 @@ def is_post_in_notion(title, url=None):
         
         if response.status_code == 200:
             data = response.json()
-            return len(data.get("results", [])) > 0
+            exists = len(data.get("results", [])) > 0
+            if exists:
+                added_items_cache.add(cache_key)  # 캐시에 추가
+            return exists
         else:
             print(f"Notion API error: {response.status_code} - {response.text}")
             return False
@@ -220,6 +247,11 @@ def update_notion_with_new_posts():
     current_time = datetime.now(kst).isoformat()
     sources = [("Website", parse_website), ("RSS", parse_rss), ("Science", parse_science_notices)]
     
+    if DRY_RUN:
+        print("\n" + "="*50)
+        print("🧪 DRY RUN MODE - NO CHANGES WILL BE MADE")
+        print("="*50 + "\n")
+    
     total_new = 0
     total_skipped = 0
     
@@ -242,7 +274,10 @@ def update_notion_with_new_posts():
                 total_skipped += 1
     
     print(f"\n{'='*50}")
-    print(f"📊 Summary:")
+    if DRY_RUN:
+        print(f"🧪 DRY RUN Summary (no changes made):")
+    else:
+        print(f"📊 Summary:")
     print(f"  - New posts added: {total_new}")
     print(f"  - Posts skipped (duplicates): {total_skipped}")
     print(f"{'='*50}")
