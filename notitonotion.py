@@ -55,27 +55,38 @@ def is_post_in_notion(title, url=None):
     2순위: 제목으로 검색
     """
     try:
+        # Notion API v2 방식: notion.request()로 직접 POST 요청
+        
         # URL이 있으면 URL로 먼저 검색 (더 정확)
         if url:
-            response = notion.databases.query(
-                database_id=DATABASE_ID,
-                filter={
-                    "property": "URL",
-                    "url": {
-                        "equals": url
+            try:
+                response = notion.request(
+                    method="POST",
+                    path=f"databases/{DATABASE_ID}/query",
+                    body={
+                        "filter": {
+                            "property": "URL",
+                            "url": {
+                                "equals": url
+                            }
+                        }
                     }
-                }
-            )
-            if len(response.get("results", [])) > 0:
-                return True
+                )
+                if len(response.get("results", [])) > 0:
+                    return True
+            except:
+                pass  # URL 검색 실패 시 제목으로 검색 계속
         
-        # URL 검색 실패 시 제목으로 검색
-        response = notion.databases.query(
-            database_id=DATABASE_ID,
-            filter={
-                "property": "Name",
-                "title": {
-                    "equals": title
+        # 제목으로 검색
+        response = notion.request(
+            method="POST",
+            path=f"databases/{DATABASE_ID}/query",
+            body={
+                "filter": {
+                    "property": "Name",
+                    "title": {
+                        "equals": title
+                    }
                 }
             }
         )
@@ -84,6 +95,9 @@ def is_post_in_notion(title, url=None):
         
     except Exception as e:
         print(f"Error checking Notion: {e}")
+        print(f"Error type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
         return False
         
 
